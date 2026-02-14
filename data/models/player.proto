@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package players;
+
+// A single player's static information
+message Player {
+  string player_id = 1;
+  string player_name = 2;
+  string profile_url = 3;
+  string position = 4;
+  string rating = 5;
+  string status = 6;
+  string highschool = 7;
+  string height = 8;
+  string weight = 9;
+  string old_school = 10;
+  string new_school = 11;
+}
+
+// Statistical data for a single season
+message PlayerSeasonStats {
+  string player_id = 1;
+  string season_year = 2;
+  int32 games_played = 3;
+  float minutes_played = 4;
+  float points_per_game = 5;
+  float rebounds_per_game = 6;
+  float assists_per_game = 7;
+  float blocks_per_game = 8;
+  float steals_per_game = 9;
+  float field_goal_percentage = 10;
+  float three_point_percentage = 11;
+  float free_throw_percentage = 12;
+}
