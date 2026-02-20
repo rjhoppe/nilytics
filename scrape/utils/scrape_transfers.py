@@ -172,4 +172,4 @@ def scrape_transfer_portal(max_records_per_year=None, output_filename="transfer_
     print("Job Complete.")
 
 if __name__ == "__main__":
-    run_scraper()
+    scrape_transfer_portal()
