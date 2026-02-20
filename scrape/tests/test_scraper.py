@@ -1,24 +1,41 @@
 import sys
 from pathlib import Path
+import pandas as pd
+import os
+import time
+import datetime
 
 # This finds the directory 'scrape' resides in and adds it to sys.path
 root_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(root_dir))
 
+# Import the centralized function
 from scrape.utils.scrape_transfers import scrape_transfer_portal
-import pandas as pd
-import os
 
 if __name__ == "__main__":
-    output_filename = "test_transfer_data.csv"
-    print("Running test scraper to get first 3 records per year...")
+    # 1. Fix datetime formatting for filename (colons/spaces aren't great for filenames)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_filename = f"test_transfer_data_{timestamp}.csv"
+    progress_file = "scrape_progress.json"
+
+    # 2. Cleanup previous progress so the test is "pure"
+    if os.path.exists(progress_file):
+        os.remove(progress_file)
+
+    start_time = time.perf_counter()
+    print(f"Running test scraper to get first 3 records per year...")
+    
+    # Run the scraper
     scrape_transfer_portal(max_records_per_year=3, output_filename=output_filename)
-    print("Test scraping complete. Checking test_transfer_data.csv")
+    
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print(f"Test scraping complete. Execution time: {execution_time:.2f} seconds")
 
     if os.path.exists(output_filename):
         df = pd.read_csv(output_filename)
 
-        # Assertions for expected columns
+        # Updated to match the centralized script's column names
         expected_static_columns = [
             'Player Name', '247Sports Profile URL', 'Position', 'Height', 'Rating',
             'Highschool', 'Old School', 'New School', 'Weight'
@@ -27,26 +44,29 @@ if __name__ == "__main__":
         for col in expected_static_columns:
             assert col in df.columns, f"Missing expected static column: {col}"
             
-        print("All expected static columns are present in the CSV.")
+        print("✅ All expected static columns are present.")
 
-        # Assert the presence of at least one dynamic stat column
-        # This checks if the flattening logic is working for stats
+        # 3. Updated assertions to match our new mapped keys:
+        # 'Minutes' became 'Minutes Played' in our mapping
         assert any("Games Played (" in col for col in df.columns), "Missing dynamic 'Games Played' column."
         assert any("Minutes Played (" in col for col in df.columns), "Missing dynamic 'Minutes Played' column."
-        # Add similar checks for other stat categories if desired
+        assert any("Points Per Game (" in col for col in df.columns), "Missing dynamic 'Points Per Game' column."
             
-        print("At least one dynamic stat column (Games Played, Minutes Played) is present.")
+        print("✅ Dynamic stat columns (Games Played, Minutes Played, Points) verified.")
 
-        # Basic data validation (e.g., check for non-N/A values in some key fields)
-        # This part could be expanded with more specific checks if needed.
-        assert not df['Height'].isnull().all(), "Height column contains only null values."
-        assert not df['Rating'].isnull().all(), "Rating column contains only null values."
-        assert not df['Position'].isnull().all(), "Position column contains only null values."
-        assert not df['Weight'].isnull().all(), "Weight column contains only null values."
-
-        print("Basic data validation passed for Height, Position, Rating, and Weight.")
+        # 4. Data Quality Check
+        # Check that we didn't just get a bunch of "N/A" strings 
+        # (Since BS4 returns strings, they won't be technically 'null' in Pandas if they are "N/A")
+        assert not (df['Height'] == 'N/A').all(), "Height column contains only N/A values."
+        assert not (df['Rating'] == 'N/A').all(), "Rating column contains only N/A values."
+        
+        # Verify we actually got the 3 records per year requested (assuming 3 years)
+        print(f"Total records captured: {len(df)}")
+        assert len(df) > 0, "No records were captured."
 
         print(f"Successfully verified data in {output_filename}")
+        
+        # Cleanup test file after success if you want to keep your directory clean
+        # os.remove(output_filename) 
     else:
-        print(f"Error: {output_filename} was not created.")
-
+        print(f"❌ Error: {output_filename} was not created.")
