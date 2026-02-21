@@ -1,16 +1,74 @@
 import os
-import re
 import pandas as pd
 import psycopg2
 from psycopg2 import sql
 
 # --- Database Configuration ---
 # It's recommended to set these as environment variables
-DB_NAME = os.getenv("DB_NAME", "cbb_transfers")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME")
+
+# Single source of truth: CSV header -> DB/proto field (matches data.models.player_pb2.Player).
+# Order matches INSERT column order for players table.
+CSV_PLAYER_COLUMNS = {
+    'Player Name': 'player_name',
+    '247Sports Profile URL': 'profile_url',
+    'Position': 'position',
+    'Rating': 'rating',
+    'Status': 'status',
+    'Highschool': 'highschool',
+    'Height': 'height',
+    'Weight': 'weight',
+    'Old School': 'old_school',
+    'New School': 'new_school',
+}
+REQUIRED_CSV_COLUMNS = list(CSV_PLAYER_COLUMNS.keys())
+
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+
+
+def parse_seasonal_column(col: str) -> tuple[str, str] | None:
+    """
+    If col is a seasonal stat column like "Points Per Game (2024-5)", returns (stat_name, season_year).
+    Otherwise returns None.
+    """
+    if " (" not in col or not col.endswith(")"):
+        return None
+    stat_name, rest = col.rsplit(" (", 1)
+    season_part = rest[:-1]  # drop trailing )
+    if len(season_part) < 6 or season_part[4] != "-":
+        return None
+    year1, _, year2 = season_part.partition("-")
+    if not (year1.isdigit() and len(year1) == 4 and year2.isdigit() and 1 <= len(year2) <= 2):
+        return None
+    return (stat_name.strip(), season_part)
+
+
+def validate_csv_structure(csv_path):
+    """
+    Validates that the CSV has the required columns before any DB work.
+    Raises FileNotFoundError if the file does not exist.
+    Raises ValueError if required columns are missing or no seasonal stat columns exist.
+    """
+    df = pd.read_csv(csv_path, nrows=0)
+    columns = set(df.columns)
+    required = set(REQUIRED_CSV_COLUMNS)
+    missing = required - columns
+    if missing:
+        raise ValueError(
+            f"CSV missing required columns: {sorted(missing)}. "
+            f"Required: {sorted(required)}"
+        )
+
+    seasonal_columns = [c for c in columns if parse_seasonal_column(c) is not None]
+    if not seasonal_columns:
+        raise ValueError(
+            "CSV has no seasonal stat columns. "
+            "Expected columns matching pattern: 'Stat Name (YYYY-N)' (e.g. 'Points Per Game (2024-5)')."
+        )
+
 
 def get_db_connection():
     """Establishes and returns a connection to the PostgreSQL database."""
@@ -43,22 +101,9 @@ def insert_player_data(conn, player_row):
     Inserts a player's static data into the 'players' table if they don't already exist.
     Returns the player's ID (either existing or newly created).
     """
+    static_data = {db_field: player_row.get(csv_col) for csv_col, db_field in CSV_PLAYER_COLUMNS.items()}
+    profile_url = static_data['profile_url']
     player_id = None
-    # Use profile_url as the unique identifier for a player
-    profile_url = player_row.get('247Sports Profile URL')
-
-    static_data = {
-        'player_name': player_row.get('Player Name'),
-        'profile_url': profile_url,
-        'position': player_row.get('Position'),
-        'rating': player_row.get('Rating'),
-        'status': player_row.get('Status'),
-        'highschool': player_row.get('Highschool'),
-        'height': player_row.get('Height'),
-        'weight': player_row.get('Weight'),
-        'old_school': player_row.get('Old School'),
-        'new_school': player_row.get('New School'),
-    }
 
     with conn.cursor() as cur:
         # Check if player already exists
@@ -109,19 +154,25 @@ def insert_season_stats(conn, player_id, season_year, stats_row):
 
 def load_data_from_csv(csv_path):
     """Main function to read a CSV, transform the data, and load it into the database."""
+    try:
+        validate_csv_structure(csv_path)
+    except FileNotFoundError:
+        print(f"Error: The file '{csv_path}' was not found.")
+        return
+    except ValueError as e:
+        print(f"Error: Invalid CSV structure. {e}")
+        return
+
     conn = get_db_connection()
     if conn is None:
         return
 
     try:
         df = pd.read_csv(csv_path)
-        
-        # Regex to find all seasonal stat columns
-        stat_pattern = re.compile(r'^(.*) \((\d{4}-\d{1,2})\)$')
-        
-        for index, row in df.iterrows():
+
+        for _, row in df.iterrows():
             player_id = insert_player_data(conn, row)
-            
+
             if player_id is None:
                 print(f"Skipping stats for player '{row.get('Player Name')}' due to missing ID.")
                 continue
@@ -129,14 +180,11 @@ def load_data_from_csv(csv_path):
             # --- Transform from wide to long format ---
             seasonal_stats = {}
             for col_name, value in row.items():
-                match = stat_pattern.match(col_name)
-                if match:
-                    stat_name = match.group(1)
-                    season_year = match.group(2)
-                    
+                parsed = parse_seasonal_column(col_name)
+                if parsed is not None:
+                    stat_name, season_year = parsed
                     if season_year not in seasonal_stats:
                         seasonal_stats[season_year] = {}
-                    
                     seasonal_stats[season_year][stat_name] = value
             
             # --- Insert each season's stats ---

@@ -219,5 +219,4 @@ __marimo__/
 .streamlit/secrets.toml
 
 scrape_progress.json
-transfer_portal_data.csv
-test_transfer_data.csv
+*.csv

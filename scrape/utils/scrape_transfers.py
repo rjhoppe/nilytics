@@ -12,7 +12,6 @@ PROGRESS_FILE = "scrape_progress.json"  # Keeps track of which URLs we've finish
 MAX_WORKERS = 1  # Keeping it at 1 for maximum IP safety; change to 2-3 if you're brave.
 
 # --- EXTRACTION LOGIC ---
-
 def extract_player_stats(profile_soup):
     all_season_stats = []
     left_table = profile_soup.find('table', class_='left-table')
@@ -55,7 +54,7 @@ def scrape_player_profile(page, profile_url):
     try:
         # Respectful delay before navigating
         time.sleep(random.uniform(2, 4))
-        page.goto(profile_url, wait_until="domcontentloaded", timeout=60000)
+        page.goto(profile_url, wait_until="domcontentloaded", timeout=20000)
         
         soup = BeautifulSoup(page.content(), 'html.parser')
         
@@ -87,8 +86,9 @@ def scrape_player_profile(page, profile_url):
                         elif event['institution'] != player_details['New School']:
                             player_details['Old School'] = event['institution']
                             break
-            except: pass
-        
+            except json.JSONDecodeError as e:
+                print(f"  Error parsing timeline JSON: {e}")
+
         player_details['Stats'] = extract_player_stats(soup)
         
     except Exception as e:
@@ -97,25 +97,29 @@ def scrape_player_profile(page, profile_url):
     return player_details
 
 # --- MAIN CONTROLLER ---
-
-def load_progress():
+def load_progress(progress_file=None):
+    path = progress_file or PROGRESS_FILE
     try:
-        with open(PROGRESS_FILE, 'r') as f:
+        with open(path, 'r') as f:
             return set(json.load(f))
-    except:
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"  Error loading progress file: {e}")
         return set()
 
-def save_progress(processed_urls):
-    with open(PROGRESS_FILE, 'w') as f:
+def save_progress(processed_urls, progress_file=None):
+    path = progress_file or PROGRESS_FILE
+    with open(path, 'w') as f:
         json.dump(list(processed_urls), f)
 
-def scrape_transfer_portal(max_records_per_year=None, output_filename="transfer_data.csv"):
-    processed_urls = load_progress()
+def scrape_transfer_portal(max_records_per_year=None, output_filename="transfer_data.csv", progress_file=None):
+    out_file = output_filename
+    processed_urls = load_progress(progress_file)
     all_players_data = []
-    
+    progress_path = progress_file or PROGRESS_FILE
+
     # Load existing CSV if it exists to append to it
-    if os.path.exists(OUTPUT_FILE):
-        all_players_data = pd.read_csv(OUTPUT_FILE).to_dict('records')
+    if os.path.exists(out_file):
+        all_players_data = pd.read_csv(out_file).to_dict('records')
 
     with sync_playwright() as p:
         # Launch one browser, use one context
@@ -123,33 +127,33 @@ def scrape_transfer_portal(max_records_per_year=None, output_filename="transfer_
         context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36")
         page = context.new_page()
 
-        # 1. Gather URLs (simplified for brevity, use your existing year loop logic here)
         years = [2025, 2024, 2023]
         for year in years:
             print(f"--- Fetching Listing for {year} ---")
+            time.sleep(random.uniform(1, 3))
             page.goto(f"https://247sports.com/season/{year}-basketball/TransferPortalTop/")
             soup = BeautifulSoup(page.content(), 'html.parser')
             items = soup.select('li.transfer-player')
+            records_this_year = 0
 
             for item in items:
+                if max_records_per_year is not None and records_this_year >= max_records_per_year:
+                    break
                 link_tag = item.select_one('h3 a')
                 if not link_tag: continue
                 
                 url = link_tag['href']
                 if url in processed_urls: continue
 
-                # Basic data from listing
                 player_data = {
                     'Player Name': link_tag.text.strip(),
                     '247Sports Profile URL': url,
                     'Listing Year': year
                 }
 
-                # 2. Detailed Scraping
                 print(f"Scraping: {player_data['Player Name']}...")
                 details = scrape_player_profile(page, url)
                 
-                # Flatten Stats
                 stats = details.pop('Stats', [])
                 for s in stats:
                     y = s.get('Year', 'Unknown')
@@ -159,16 +163,18 @@ def scrape_transfer_portal(max_records_per_year=None, output_filename="transfer_
                 player_data.update(details)
                 all_players_data.append(player_data)
                 processed_urls.add(url)
+                records_this_year += 1
 
-                # 3. Incremental Saving (Safety first!)
                 if len(all_players_data) % 10 == 0:
-                    pd.DataFrame(all_players_data).to_csv(OUTPUT_FILE, index=False)
-                    save_progress(processed_urls)
+                    pd.DataFrame(all_players_data).to_csv(out_file, index=False)
+                    save_progress(processed_urls, progress_path)
                     print(f"Saved progress: {len(processed_urls)} records total.")
 
         browser.close()
 
-    pd.DataFrame(all_players_data).to_csv(OUTPUT_FILE, index=False)
+    pd.DataFrame(all_players_data).to_csv(out_file, index=False)
+    if all_players_data:
+        save_progress(processed_urls, progress_path)
     print("Job Complete.")
 
 if __name__ == "__main__":
