@@ -3,7 +3,7 @@ Dry run: pull a small amount of real data from 247sports and verify DOM structur
 Run this before main.py to confirm the site layout hasn't changed.
 
 Usage (from repo root):
-  python -m scrape.utils.dryrun
+  python -m app.scrape.utils.dryrun
 
 Uses its own output and progress files so it does not affect production data.
 Exits 0 if structure is valid, 1 otherwise.
@@ -15,12 +15,12 @@ from typing import List, Tuple
 
 import pandas as pd
 
-# Allow running as script or as module (utils dir -> parent.parent.parent = repo root)
-root_dir = Path(__file__).resolve().parent.parent.parent
+# Allow running as script or as module (utils dir -> parent.parent.parent.parent = repo root)
+root_dir = Path(__file__).resolve().parent.parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from scrape.utils.scrape_transfers import scrape_transfer_portal
+from app.scrape.utils.scrape_transfers import scrape_transfer_portal
 
 DRYRUN_OUTPUT = "dryrun_transfer_data.csv"
 DRYRUN_PROGRESS = "dryrun_progress.json"

@@ -11,13 +11,13 @@ from unittest.mock import patch
 
 import pandas as pd
 
-# This finds the directory 'scrape' resides in and adds it to sys.path
-root_dir = Path(__file__).resolve().parent.parent.parent
+# This finds the directory 'app' resides in (repo root) and adds it to sys.path
+root_dir = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(root_dir))
 
 from bs4 import BeautifulSoup
 
-from scrape.utils.scrape_transfers import (
+from app.scrape.utils.scrape_transfers import (
     extract_player_stats,
     load_progress,
     save_progress,
@@ -86,7 +86,7 @@ class TestProgressPersistence(unittest.TestCase):
     """Test load_progress / save_progress with a temp file (no real progress file touched)."""
 
     def test_load_progress_returns_empty_set_when_file_missing(self):
-        with patch("scrape.utils.scrape_transfers.PROGRESS_FILE", "/nonexistent/path.json"):
+        with patch("app.scrape.utils.scrape_transfers.PROGRESS_FILE", "/nonexistent/path.json"):
             result = load_progress()
         self.assertEqual(result, set())
 
@@ -96,7 +96,7 @@ class TestProgressPersistence(unittest.TestCase):
         ) as f:
             path = f.name
         try:
-            with patch("scrape.utils.scrape_transfers.PROGRESS_FILE", path):
+            with patch("app.scrape.utils.scrape_transfers.PROGRESS_FILE", path):
                 urls = {"https://example.com/a", "https://example.com/b"}
                 save_progress(urls)
                 loaded = load_progress()
@@ -112,7 +112,7 @@ class TestProgressPersistence(unittest.TestCase):
             f.write("not valid json {")
             path = f.name
         try:
-            with patch("scrape.utils.scrape_transfers.PROGRESS_FILE", path):
+            with patch("app.scrape.utils.scrape_transfers.PROGRESS_FILE", path):
                 result = load_progress()
                 self.assertEqual(result, set())
         finally:

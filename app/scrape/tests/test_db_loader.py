@@ -3,7 +3,7 @@ import tempfile
 import unittest
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from scrape.utils import load_to_db
+from app.scrape.utils import load_to_db
 from data.models import player_pb2
 
 # --- Database Configuration for Testing ---

@@ -1,7 +1,7 @@
 # Scrape service: transfer portal scraper + load to DB.
 # Uses Playwright for browser automation; base image includes browsers.
 #
-# Build from repo root:  docker build -f scrape/Dockerfile .
+# Build from repo root:  docker build -f app/scrape/Dockerfile .
 # Run example:
 #   docker run --env-file .env \
 #     -e DB_HOST=host.docker.internal \
@@ -19,11 +19,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Application and shared data (protos etc.)
-COPY scrape ./scrape
+COPY app ./app
 COPY data ./data
 
 # Scraper writes transfer_portal_data.csv and scrape_progress.json in CWD
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-CMD ["./entrypoint.sh"]
+CMD ["bash", "app/scrape/entrypoint.sh"]
