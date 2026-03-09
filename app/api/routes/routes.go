@@ -14,6 +14,7 @@ func Register(mux *http.ServeMux, db *database.DB) {
 	mux.HandleFunc("GET /players", listPlayersHandler(db))
 }
 
+// Test route to list all players from database
 func listPlayersHandler(db *database.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		players, err := db.ListPlayers(r.Context())
