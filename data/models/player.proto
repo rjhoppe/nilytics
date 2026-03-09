@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package players;
 
-option go_package = "nilytics/app/api/internal/pb";
+option go_package = "nilytics/data/models";
 
 // A single player's static information
 message Player {

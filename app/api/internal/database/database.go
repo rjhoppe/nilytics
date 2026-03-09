@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"nilytics/app/api/internal/pb"
+	"nilytics/data/models"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -46,7 +46,7 @@ func getEnv(key, def string) string {
 }
 
 // ListPlayers returns all players from the players table as proto-backed structs.
-func (db *DB) ListPlayers(ctx context.Context) ([]*pb.Player, error) {
+func (db *DB) ListPlayers(ctx context.Context) ([]*models.Player, error) {
 	rows, err := db.Pool.QueryContext(ctx, `
 		SELECT player_id, player_name, profile_url, position, rating, status,
 		       highschool, height, weight, old_school, new_school
@@ -58,7 +58,7 @@ func (db *DB) ListPlayers(ctx context.Context) ([]*pb.Player, error) {
 	}
 	defer rows.Close()
 
-	var out []*pb.Player
+	var out []*models.Player
 	for rows.Next() {
 		var (
 			playerID   int
@@ -71,7 +71,7 @@ func (db *DB) ListPlayers(ctx context.Context) ([]*pb.Player, error) {
 		); err != nil {
 			return nil, err
 		}
-		out = append(out, &pb.Player{
+		out = append(out, &models.Player{
 			PlayerId:   fmt.Sprint(playerID),
 			PlayerName: nullStr(playerName),
 			ProfileUrl: nullStr(profileURL),

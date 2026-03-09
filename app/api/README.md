@@ -17,6 +17,6 @@ Requires:
 - `protoc-gen-go`: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`  
   Ensure `$GOBIN` or `$GOPATH/bin` is on your `PATH`.
 
-This generates `app/api/internal/pb/player.pb.go` from [data/models/player.proto](../../data/models/player.proto). The API uses these types for DB results and JSON responses; do not hand-edit the generated file.
+This generates `data/models/player.pb.go` from [data/models/player.proto](../../data/models/player.proto). The API uses these types for DB results and JSON responses; do not hand-edit the generated file.
 
-Then build/run from `app/api` or repo root as usual (e.g. `go build .`, or run the Dockerfile).
+Build/run from repo root (the Go module is at root): `go build ./app/api`, or use Docker (build context is repo root; see [docker-compose.yaml](../../docker-compose.yaml)).

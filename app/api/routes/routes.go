@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"nilytics/app/api/internal/database"
-	"nilytics/app/api/internal/pb"
+	"nilytics/data/models"
 )
 
 func Register(mux *http.ServeMux, db *database.DB) {
@@ -25,7 +25,7 @@ func listPlayersHandler(db *database.DB) http.HandlerFunc {
 			return
 		}
 		if players == nil {
-			players = []*pb.Player{}
+			players = []*models.Player{}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(players); err != nil {

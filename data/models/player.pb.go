@@ -4,7 +4,7 @@
 // 	protoc        v6.33.4
 // source: data/models/player.proto
 
-package pb
+package models
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -317,7 +317,7 @@ const file_data_models_player_proto_rawDesc = "" +
 	"\x15field_goal_percentage\x18\n" +
 	" \x01(\x02R\x13fieldGoalPercentage\x124\n" +
 	"\x16three_point_percentage\x18\v \x01(\x02R\x14threePointPercentage\x122\n" +
-	"\x15free_throw_percentage\x18\f \x01(\x02R\x13freeThrowPercentageB\x1eZ\x1cnilytics/app/api/internal/pbb\x06proto3"
+	"\x15free_throw_percentage\x18\f \x01(\x02R\x13freeThrowPercentageB\x16Z\x14nilytics/data/modelsb\x06proto3"
 
 var (
 	file_data_models_player_proto_rawDescOnce sync.Once
