@@ -1,6 +1,17 @@
 archive/
 .venv/
 
+# Node / pnpm
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+pnpm-debug.log*
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -217,3 +228,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+scrape_progress.json
+*.csv

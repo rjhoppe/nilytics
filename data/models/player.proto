@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package players;
 
+option go_package = "nilytics/data/models";
+
 // A single player's static information
 message Player {
   string player_id = 1;
